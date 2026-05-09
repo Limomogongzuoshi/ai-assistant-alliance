@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI助手联盟 - 分身协作工作台</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1a237e 50%, #0d47a1 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        header {
+            text-align: center;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d4ff, #7c4dff, #f50057);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+
+        .workspace {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .agents-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .agent-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .agent-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .agent-card:hover::before {
+            left: 100%;
+        }
+
+        .agent-card.active {
+            border-color: #00d4ff;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .agent-card.working {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.3); }
+            50% { box-shadow: 0 0 50px rgba(0, 212, 255, 0.6); }
+        }
+
+        .agent-card.completed {
+            border-color: #00e676;
+            box-shadow: 0 0 30px rgba(0, 230, 118, 0.3);
+        }
+
+        .agent-avatar {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .agent-card:hover .agent-avatar {
+            transform: scale(1.1);
+        }
+
+        .agent-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .agent-domain {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7c4dff);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .agent-status {
+            font-size: 0.85rem;
+            opacity: 0.6;
+        }
+
+        .agent-output {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .agent-card.completed .agent-output {
+            display: block;
+        }
+
+        .input-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-section h3 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        #question-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            resize: none;
+            margin-bottom: 1rem;
+        }
+
+        #question-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        button {
+            background: linear-gradient(90deg, #00d4ff, #7c4dff);
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            display: none;
+        }
+
+        .result-section.visible {
+            display: block;
+        }
+
+        .result-section h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .report-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .report-card h4 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .report-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .report-card li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .report-card li:last-child {
+            border-bottom: none;
+        }
+
+        .report-card li::before {
+            content: '▸';
+            color: #00d4ff;
+            margin-right: 0.5rem;
+        }
+
+        .upload-section {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-section h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(0, 212, 255, 0.5);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .upload-zone:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .upload-zone.dragover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.15);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+            font-size: 0.85rem;
+            opacity: 0.6;
+        }
+
+        .upload-progress {
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .progress-bar-upload {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill-upload {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7c4dff);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .uploaded-files {
+            margin-top: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .file-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .file-tag .remove-file {
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .file-tag .remove-file:hover {
+            opacity: 1;
+        }
+
+        .document-content {
+            margin-top: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .document-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: rgba(0, 212, 255, 0.05);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .document-header h4 {
+            font-size: 1.1rem;
+        }
+
+        .btn-clear {
+            padding: 0.4rem 1rem;
+            background: rgba(245, 0, 87, 0.2);
+            border: 1px solid rgba(245, 0, 87, 0.3);
+            border-radius: 6px;
+            color: #ff4081;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            background: rgba(245, 0, 87, 0.3);
+        }
+
+        .document-body {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 1.5rem;
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+
+        .document-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .document-body::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .document-body::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        .document-body::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 255, 0.5);
+        }
+
+        .document-body h1, .document-body h2, .document-body h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #00d4ff;
+        }
+
+        .document-body h1:first-child, .document-body h2:first-child, .document-body h3:first-child {
+            margin-top: 0;
+        }
+
+        .document-body p {
+            margin-bottom: 1rem;
+        }
+
+        .document-body ul, .document-body ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .document-body li {
+            margin-bottom: 0.5rem;
+        }
+
+        .document-body code {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .document-body pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        .document-body pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .document-body blockquote {
+            border-left: 3px solid #00d4ff;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            opacity: 0.8;
+            font-style: italic;
+        }
+
+        .document-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .document-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+
+        .document-body th, .document-body td {
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        .document-body th {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .inspiration-section {
+            max-width: 1400px;
+            margin: 3rem auto 0;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .inspiration-section h3 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #ffd700;
+        }
+
+        .inspiration-intro {
+            text-align: center;
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-bottom: 2rem;
+        }
+
+        .connection-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+        }
+
+        .connection-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .connection-item:hover {
+            border-color: rgba(255, 215, 0, 0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.1);
+        }
+
+        .connection-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .connection-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #00d4ff;
+        }
+
+        .connection-book {
+            font-size: 0.9rem;
+            color: #ffd700;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .connection-desc {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            line-height: 1.5;
+        }
+
+        .analysis-trigger {
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        .analysis-trigger button {
+            background: linear-gradient(90deg, #ff9800, #ff5722);
+        }
+
+        .analysis-trigger button:hover {
+            box-shadow: 0 5px 20px rgba(255, 152, 0, 0.4);
+        }
+
+        .auto-analysis-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            background: rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 152, 0, 0.4);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #ff9800;
+            margin-left: 1rem;
+        }
+
+        .level-btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            min-width: 120px;
+        }
+
+        .level-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .level-btn.selected {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .level-easy {
+            background: linear-gradient(135deg, #4caf50, #8bc34a);
+            color: white;
+        }
+
+        .level-easy:hover, .level-easy.selected {
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .level-medium {
+            background: linear-gradient(135deg, #2196f3, #03a9f4);
+            color: white;
+        }
+
+        .level-medium:hover, .level-medium.selected {
+            box-shadow: 0 5px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        .level-hard {
+            background: linear-gradient(135deg, #9c27b0, #e91e63);
+            color: white;
+        }
+
+        .level-hard:hover, .level-hard.selected {
+            box-shadow: 0 5px 20px rgba(156, 39, 176, 0.4);
+        }
+
+        .level-all {
+            background: linear-gradient(135deg, #ff9800, #ff5722);
+            color: white;
+        }
+
+        .level-all:hover, .level-all.selected {
+            box-shadow: 0 5px 20px rgba(255, 152, 0, 0.4);
+        }
+
+        @media (max-width: 1024px) {
+            .connection-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .agents-container {
+                grid-template-columns: 1fr;
+            }
+
+            .connection-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .level-btn {
+                min-width: 100px;
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <header>
+        <h1>AI助手联盟</h1>
+        <p>以普通人身份切入四大前沿领域：太空探索与星际文明、长寿科技与生命延续、人工智能安全治理、个人能力提升系统<br>通过 AI Agent 协作网络进行系统化学习与知识整合，致力于将前沿科技转化为普通人可理解、可应用的实用成果</p>
+    </header>
+
+    <div class="workspace">
+        <div class="input-section">
+            <h3>🤔 提出你的问题</h3>
+            <textarea id="question-input" rows="3" placeholder="作为普通人，如何参与未来科技发展？"></textarea>
+            <button id="submit-btn">🚀 启动分身协作</button>
+        </div>
+
+        <div class="agents-container">
+            <div class="agent-card" id="agent-science">
+                <div class="agent-avatar">👨‍🔬</div>
+                <div class="agent-name">科研助手</div>
+                <div class="agent-domain">太空探索与星际文明</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="agent-status">等待任务...</div>
+                <div class="agent-output" id="output-science"></div>
+            </div>
+
+            <div class="agent-card" id="agent-security">
+                <div class="agent-avatar">🛡️</div>
+                <div class="agent-name">安全顾问</div>
+                <div class="agent-domain">人工智能安全治理</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="agent-status">等待任务...</div>
+                <div class="agent-output" id="output-security"></div>
+            </div>
+
+            <div class="agent-card" id="agent-health">
+                <div class="agent-avatar">🧬</div>
+                <div class="agent-name">生命科学家</div>
+                <div class="agent-domain">长寿科技与生命延续</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="agent-status">等待任务...</div>
+                <div class="agent-output" id="output-health"></div>
+            </div>
+
+            <div class="agent-card" id="agent-mentor">
+                <div class="agent-avatar">🧠</div>
+                <div class="agent-name">成长导师</div>
+                <div class="agent-domain">个人能力提升系统</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="agent-status">等待任务...</div>
+                <div class="agent-output" id="output-mentor"></div>
+            </div>
+        </div>
+
+        <div class="result-section" id="result-section">
+            <h3>📋 综合报告 - 《普通人未来科技行动指南》</h3>
+            <div class="report-card">
+                <h4>🚀 探索层：科研助手建议</h4>
+                <ul>
+                    <li>关注SpaceX星舰进展，了解可重复使用火箭技术</li>
+                    <li>学习中国深空探测计划，关注嫦娥、天问系列任务</li>
+                    <li>了解近地轨道商业化机遇，如卫星互联网、太空旅游</li>
+                </ul>
+            </div>
+            <div class="report-card">
+                <h4>🧬 生命层：生命科学家洞察</h4>
+                <ul>
+                    <li>关注细胞再生与抗衰老研究最新进展</li>
+                    <li>了解纳米技术在医疗领域的应用</li>
+                    <li>探索AI辅助药物研发和个性化医疗方案</li>
+                </ul>
+            </div>
+            <div class="report-card">
+                <h4>🛡️ 风险层：安全顾问提醒</h4>
+                <ul>
+                    <li>AI辅助决策需保持人类最终控制权</li>
+                    <li>关注数据主权，确保个人信息安全</li>
+                    <li>了解人机协作的安全边界和伦理规范</li>
+                </ul>
+            </div>
+            <div class="report-card">
+                <h4>🧠 行动层：成长导师规划</h4>
+                <ul>
+                    <li>阶段一（3个月）：关注前沿科技科普，建立知识基础</li>
+                    <li>阶段二（6个月）：学习编程和AI工具，提升技术能力</li>
+                    <li>阶段三（1年）：参与开源项目，贡献个人力量</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="upload-section">
+        <h3>📂 导入文档（支持MD/DOCX/PDF）<span class="auto-analysis-badge">🤖 自动分析</span></h3>
+        <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">📄</div>
+            <p class="upload-text">拖拽文件到此处，或点击选择文件</p>
+            <p class="upload-hint">支持 .md, .docx, .pdf 格式</p>
+            <input type="file" id="file-input" accept=".md,.docx,.pdf" multiple hidden>
+        </div>
+        <div class="upload-progress" id="upload-progress">
+            <div class="progress-bar-upload">
+                <div class="progress-fill-upload" id="progress-fill-upload"></div>
+            </div>
+            <p class="progress-text" id="progress-text">正在解析文档...</p>
+        </div>
+        <div class="uploaded-files" id="uploaded-files"></div>
+        <div class="document-content" id="document-content" style="display: none;">
+            <div class="document-header">
+                <h4 id="document-title">文档内容</h4>
+                <button class="btn-clear" id="btn-clear">✕ 清除</button>
+            </div>
+            <div class="document-body" id="document-body"></div>
+        </div>
+        <div class="analysis-trigger" id="analysis-trigger" style="display: none;">
+            <p style="margin-bottom: 1rem; text-align: center; opacity: 0.8;">选择难度级别，自动生成产品开发方案：</p>
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <button class="level-btn level-easy" data-level="入门级">
+                    🌱 简单版
+                </button>
+                <button class="level-btn level-medium" data-level="中级">
+                    🚀 中级版
+                </button>
+                <button class="level-btn level-hard" data-level="进阶级">
+                    🛡️ 高级版
+                </button>
+                <button class="level-btn level-all" data-level="全部">
+                    🎯 全部版本
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="inspiration-section">
+        <h3>📚 灵感来源：《地心人的传话》</h3>
+        <p class="inspiration-intro">本书是AI助手联盟的「技术预言书」—— 2023年消防员姬无烦遇到地心人布纬罗的经历记录</p>
+        <div class="connection-grid">
+            <div class="connection-item">
+                <div class="connection-icon">🚀</div>
+                <div class="connection-title">太空探索与星际文明</div>
+                <div class="connection-book">星萃联盟</div>
+                <div class="connection-desc">书中提到的外星联盟组织，代表地球与星际文明的连接</div>
+            </div>
+            <div class="connection-item">
+                <div class="connection-icon">🧬</div>
+                <div class="connection-title">长寿科技与生命延续</div>
+                <div class="connection-book">纳米芯片/营养液</div>
+                <div class="connection-desc">地心人超前科技的代表，姬无烦亲身体验</div>
+            </div>
+            <div class="connection-item">
+                <div class="connection-icon">🛡️</div>
+                <div class="connection-title">人工智能安全治理</div>
+                <div class="connection-book">传话人系统</div>
+                <div class="connection-desc">地心人与地表人的安全通讯机制，万能量场保护</div>
+            </div>
+            <div class="connection-item">
+                <div class="connection-icon">🧠</div>
+                <div class="connection-title">个人能力提升系统</div>
+                <div class="connection-book">姬无烦的成长</div>
+                <div class="connection-desc">从普通消防员到精神文明觉醒的蜕变之路</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inspiration-section" style="margin-top: 2rem; border-color: rgba(156, 39, 176, 0.3);">
+        <h3 style="color: #ce93d8;">🔮 技术预言：《统一场论》</h3>
+        <p class="inspiration-intro">宇宙底层公式 —— 张祥前统一场论揭示的物理本质与应用</p>
+        <div class="connection-grid">
+            <div class="connection-item" style="border-color: rgba(156, 39, 176, 0.1);">
+                <div class="connection-icon">🚀</div>
+                <div class="connection-title">太空探索与星际文明</div>
+                <div class="connection-book">光速飞碟</div>
+                <div class="connection-desc">利用人工场产生的正、反引力场实现光速飞行，直接通往星际文明</div>
+            </div>
+            <div class="connection-item" style="border-color: rgba(156, 39, 176, 0.1);">
+                <div class="connection-icon">🧬</div>
+                <div class="connection-title">长寿科技与生命延续</div>
+                <div class="connection-book">人工场扫描</div>
+                <div class="connection-desc">对人体冷焊接、激发、加热；意识存储与读取技术</div>
+            </div>
+            <div class="connection-item" style="border-color: rgba(156, 39, 176, 0.1);">
+                <div class="connection-icon">🛡️</div>
+                <div class="connection-title">人工智能安全治理</div>
+                <div class="connection-book">基础物理框架</div>
+                <div class="connection-desc">统一场论揭示宇宙基本规律，为AI建立理解物理世界的安全边界</div>
+            </div>
+            <div class="connection-item" style="border-color: rgba(156, 39, 176, 0.1);">
+                <div class="connection-icon">🧠</div>
+                <div class="connection-title">个人能力提升系统</div>
+                <div class="connection-book">时空同一化</div>
+                <div class="connection-desc">理解时间本质，突破生理限制，实现认知跃迁</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inspiration-section" style="margin-top: 2rem; border-color: rgba(255, 152, 0, 0.3);">
+        <h3 style="color: #ff9800;">🌌 文明实践：《外星文明与人类未来》</h3>
+        <p class="inspiration-intro">姬无烦续作 —— 星际文明落地实践指南</p>
+        <div class="connection-grid">
+            <div class="connection-item" style="border-color: rgba(255, 152, 0, 0.1);">
+                <div class="connection-icon">🚀</div>
+                <div class="connection-title">太空探索与星际文明</div>
+                <div class="connection-book">星际领航国</div>
+                <div class="connection-desc">疾风号宇宙飞船、载人登月、星际文明治理</div>
+            </div>
+            <div class="connection-item" style="border-color: rgba(255, 152, 0, 0.1);">
+                <div class="connection-icon">🧬</div>
+                <div class="connection-title">长寿科技与生命延续</div>
+                <div class="connection-book">基因强化液</div>
+                <div class="connection-desc">人类基因初代强化液、意识唤醒、人体再世</div>
+            </div>
+            <div class="connection-item" style="border-color: rgba(255, 152, 0, 0.1);">
+                <div class="connection-icon">🛡️</div>
+                <div class="connection-title">人工智能安全治理</div>
+                <div class="connection-book">全球治理框架</div>
+                <div class="connection-desc">三大自治区、联合国体制、新系统升级</div>
+            </div>
+            <div class="connection-item" style="border-color: rgba(255, 152, 0, 0.1);">
+                <div class="connection-icon">🧠</div>
+                <div class="connection-title">个人能力提升系统</div>
+                <div class="connection-book">秦衡的逆袭</div>
+                <div class="connection-desc">普通人获得外星知识，知识平权，能力跃迁</div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>AI助手联盟 · 以普通人身份切入四大前沿领域</p>
+        <p style="margin-top: 0.5rem;">
+            <a href="#" target="_blank">了解更多</a> | 
+            <a href="#" target="_blank">加入社区</a> | 
+            <a href="#" target="_blank">联系我们</a>
+        </p>
+    </footer>
+
+    <script>
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.width = Math.random() * 2 + 1 + 'px';
+                star.style.height = star.style.width;
+                starsContainer.appendChild(star);
+            }
+        }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+        const uploadProgress = document.getElementById('upload-progress');
+        const progressFillUpload = document.getElementById('progress-fill-upload');
+        const progressText = document.getElementById('progress-text');
+        const uploadedFiles = document.getElementById('uploaded-files');
+        const documentContent = document.getElementById('document-content');
+        const documentBody = document.getElementById('document-body');
+        const documentTitle = document.getElementById('document-title');
+        const btnClear = document.getElementById('btn-clear');
+        const analysisTrigger = document.getElementById('analysis-trigger');
+        const analyzeBtn = document.getElementById('analyze-btn');
+
+        let currentFiles = [];
+        let currentDocumentContent = '';
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            handleFiles(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        function handleFiles(files) {
+            const validExtensions = ['.md', '.docx', '.pdf'];
+            const validFiles = files.filter(file => {
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                return validExtensions.includes(ext);
+            });
+
+            if (validFiles.length === 0) {
+                alert('请上传 .md, .docx 或 .pdf 格式的文件');
+                return;
+            }
+
+            validFiles.forEach(file => {
+                if (!currentFiles.find(f => f.name === file.name)) {
+                    currentFiles.push(file);
+                }
+            });
+
+            renderFileTags();
+            processFiles();
+        }
+
+        function renderFileTags() {
+            uploadedFiles.innerHTML = currentFiles.map((file, index) => `
+                <div class="file-tag">
+                    <span>${getFileIcon(file.name)}</span>
+                    <span>${file.name}</span>
+                    <span class="remove-file" onclick="removeFile(${index})">✕</span>
+                </div>
+            `).join('');
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'md': '📝',
+                'docx': '📄',
+                'pdf': '📕'
+            };
+            return icons[ext] || '📄';
+        }
+
+        function removeFile(index) {
+            currentFiles.splice(index, 1);
+            renderFileTags();
+            if (currentFiles.length === 0) {
+                documentContent.style.display = 'none';
+                analysisTrigger.style.display = 'none';
+                currentDocumentContent = '';
+            }
+        }
+
+        async function processFiles() {
+            uploadProgress.style.display = 'block';
+            progressFillUpload.style.width = '0%';
+            progressText.textContent = '正在解析文档...';
+
+            let totalProgress = 0;
+            const progressStep = 100 / currentFiles.length;
+
+            for (const file of currentFiles) {
+                try {
+                    const content = await parseFile(file);
+                    currentDocumentContent += content + '\n\n';
+                    totalProgress += progressStep;
+                    progressFillUpload.style.width = totalProgress + '%';
+                    progressText.textContent = `已解析: ${file.name}`;
+                } catch (error) {
+                    console.error(`解析文件 ${file.name} 失败:`, error);
+                    progressText.textContent = `解析失败: ${file.name}`;
+                }
+            }
+
+            setTimeout(() => {
+                uploadProgress.style.display = 'none';
+                const lastFile = currentFiles[currentFiles.length - 1];
+                displayDocument(lastFile.name, currentDocumentContent);
+                analysisTrigger.style.display = 'block';
+            }, 500);
+        }
+
+        async function parseFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+
+            switch (ext) {
+                case 'md':
+                    return await parseMarkdown(file);
+                case 'docx':
+                    return await parseDocx(file);
+                case 'pdf':
+                    return await parsePdf(file);
+                default:
+                    return '不支持的文件格式';
+            }
+        }
+
+        async function parseMarkdown(file) {
+            const text = await file.text();
+            return convertMarkdownToHtml(text);
+        }
+
+        async function parseDocx(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            return result.value;
+        }
+
+        async function parsePdf(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let text = '';
+
+            for (let i = 1; i <= Math.min(pdf.numPages, 50); i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const pageText = content.items.map(item => item.str).join(' ');
+                text += pageText + '\n\n';
+                progressFillUpload.style.width = (i / pdf.numPages * 100) + '%';
+            }
+
+            return text;
+        }
+
+        function convertMarkdownToHtml(markdown) {
+            let html = markdown
+                .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                .replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>')
+                .replace(/^- (.*$)/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/^(?!<[h|p|u|o|l|b|c|a|q])/gm, '<p>')
+                .replace(/(?<![>])$/gm, '</p>');
+
+            return html;
+        }
+
+        function displayDocument(filename, content) {
+            documentTitle.textContent = filename;
+            documentBody.innerHTML = content;
+            documentContent.style.display = 'block';
+        }
+
+        btnClear.addEventListener('click', () => {
+            currentFiles = [];
+            currentDocumentContent = '';
+            uploadedFiles.innerHTML = '';
+            documentContent.style.display = 'none';
+            analysisTrigger.style.display = 'none';
+            fileInput.value = '';
+        });
+
+        const keywordsMap = {
+            science: {
+                keywords: ['星球', '航天', '太空', '宇宙', '火箭', '卫星', 'SpaceX', '星舰', '深空', '轨道', '登月', '火星', '星际', '光速', '飞碟', '引力场', '统一场', '外星文明', '核聚变', '能源', '戴森'],
+                icon: '🚀'
+            },
+            health: {
+                keywords: ['生命', '长寿', '基因', '细胞', '纳米', '医疗', '健康', '抗衰老', '再生', '人体', '意识', '大脑', '神经', '芯片', '人工智能', 'AI', '克隆', '器官', '免疫', '疫苗', '药物', '治疗', '康复'],
+                icon: '🧬'
+            },
+            security: {
+                keywords: ['安全', '风险', '伦理', '法律', '隐私', '数据', '主权', '治理', '管控', '规范', '标准', '协议', '机制', '系统', '审核', '控制', '限制', '边界', '合规', '监管', '联合国', '自治区'],
+                icon: '🛡️'
+            },
+            mentor: {
+                keywords: ['成长', '学习', '教育', '知识', '能力', '提升', '规划', '行动', '普通人', '普通人', '参与', '贡献', '发展', '进步', '培养', '训练', '实践', '经验', '技能', '思维', '认知', '逆袭', '改变'],
+                icon: '🧠'
+            }
+        };
+
+        function analyzeDocument(text) {
+            const results = {
+                science: { score: 0, insights: [], keywords: [] },
+                health: { score: 0, insights: [], keywords: [] },
+                security: { score: 0, insights: [], keywords: [] },
+                mentor: { score: 0, insights: [], keywords: [] }
+            };
+
+            const lowerText = text.toLowerCase();
+
+            for (const [agent, data] of Object.entries(keywordsMap)) {
+                data.keywords.forEach(keyword => {
+                    const regex = new RegExp(keyword, 'gi');
+                    const matches = lowerText.match(regex);
+                    if (matches) {
+                        results[agent].score += matches.length;
+                        if (!results[agent].keywords.includes(keyword)) {
+                            results[agent].keywords.push(keyword);
+                        }
+                    }
+                });
+
+                if (results[agent].score > 0) {
+                    if (agent === 'science') {
+                        results[agent].insights = generateScienceInsights(results[agent].keywords);
+                    } else if (agent === 'health') {
+                        results[agent].insights = generateHealthInsights(results[agent].keywords);
+                    } else if (agent === 'security') {
+                        results[agent].insights = generateSecurityInsights(results[agent].keywords);
+                    } else if (agent === 'mentor') {
+                        results[agent].insights = generateMentorInsights(results[agent].keywords);
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        function generateScienceInsights(keywords) {
+            const insights = [];
+            const productPaths = [];
+            
+            if (keywords.some(k => ['星球', '航天', '太空', '宇宙', '火箭', '卫星'].includes(k))) {
+                insights.push('📡 涉及太空探索主题');
+                productPaths.push({
+                    name: '太空数据可视化平台',
+                    desc: '整合卫星数据、航天任务信息，面向科普教育',
+                    tools: 'Python + D3.js + NASA Open APIs',
+                    level: '入门级'
+                });
+            }
+            
+            if (keywords.some(k => ['光速', '引力场', '统一场', '场论'].includes(k))) {
+                insights.push('🔮 涉及基础物理理论');
+                productPaths.push({
+                    name: '物理概念可视化工具',
+                    desc: '将统一场论等复杂理论可视化，帮助普通人理解',
+                    tools: 'Three.js + WebGL + React',
+                    level: '进阶级'
+                });
+            }
+            
+            if (keywords.some(k => ['外星文明', '星际', '星系'].includes(k))) {
+                insights.push('🌌 涉及星际文明议题');
+                productPaths.push({
+                    name: '星际文明科普APP',
+                    desc: '用故事化方式传播星际文明知识',
+                    tools: 'Flutter + AI生成内容',
+                    level: '入门级'
+                });
+            }
+            
+            if (keywords.some(k => ['能源', '核聚变', '太阳能'].includes(k))) {
+                insights.push('⚡ 涉及能源技术方向');
+                productPaths.push({
+                    name: '家庭能源管理系统',
+                    desc: 'AI优化家庭能源使用，降低碳排放',
+                    tools: 'IoT + ML + Mobile App',
+                    level: '进阶级'
+                });
+            }
+            
+            if (insights.length === 0) {
+                insights.push('🔬 技术发展趋势相关');
+            }
+            
+            return { insights, productPaths };
+        }
+
+        function generateHealthInsights(keywords) {
+            const insights = [];
+            const productPaths = [];
+            
+            if (keywords.some(k => ['基因', '细胞', '再生', '克隆'].includes(k))) {
+                insights.push('🧬 涉及生命科学前沿');
+                productPaths.push({
+                    name: '基因科普知识库',
+                    desc: '将基因技术用普通人能理解的方式传播',
+                    tools: 'Notion + AI写作 + 可视化',
+                    level: '入门级'
+                });
+            }
+            
+            if (keywords.some(k => ['纳米', '芯片', 'AI', '人工智能'].includes(k))) {
+                insights.push('🤖 涉及生物技术融合');
+                productPaths.push({
+                    name: 'AI健康监测助手',
+                    desc: '基于可穿戴设备数据的个性化健康建议',
+                    tools: 'TensorFlow + Flutter + Health APIs',
+                    level: '进阶级'
+                });
+            }
+            
+            if (keywords.some(k => ['意识', '大脑', '神经', '脑机'].includes(k))) {
+                insights.push('🧠 涉及脑科学领域');
+                productPaths.push({
+                    name: '认知训练游戏',
+                    desc: '基于神经科学原理的脑力训练应用',
+                    tools: 'Unity + ML + 认知科学',
+                    level: '中级'
+                });
+            }
+            
+            if (keywords.some(k => ['长寿', '抗衰老', '健康', '医疗'].includes(k))) {
+                insights.push('💊 涉及健康长寿主题');
+                productPaths.push({
+                    name: '长寿生活方式社区',
+                    desc: '分享科学养生、抗衰老实践的社群平台',
+                    tools: '社交平台 + AI内容审核',
+                    level: '入门级'
+                });
+            }
+            
+            if (insights.length === 0) {
+                insights.push('🏥 医疗健康相关');
+            }
+            
+            return { insights, productPaths };
+        }
+
+        function generateSecurityInsights(keywords) {
+            const insights = [];
+            const productPaths = [];
+            
+            if (keywords.some(k => ['安全', '风险', '边界', '失控'].includes(k))) {
+                insights.push('🛡️ 涉及安全风险评估');
+                productPaths.push({
+                    name: 'AI安全评估工具',
+                    desc: '帮助开发者检测AI应用的潜在风险',
+                    tools: 'Python + LLM API + 评估框架',
+                    level: '进阶级'
+                });
+            }
+            
+            if (keywords.some(k => ['伦理', '法律', '规范', '标准'].includes(k))) {
+                insights.push('⚖️ 涉及伦理法律规范');
+                productPaths.push({
+                    name: 'AI伦理知识图谱',
+                    desc: '整理AI伦理法规，帮助开发者合规开发',
+                    tools: '知识图谱 + RAG + Chatbot',
+                    level: '中级'
+                });
+            }
+            
+            if (keywords.some(k => ['隐私', '数据', '主权', '加密'].includes(k))) {
+                insights.push('🔐 涉及数据隐私保护');
+                productPaths.push({
+                    name: '个人数据保险箱',
+                    desc: '帮助用户管理、保护个人数据的工具',
+                    tools: '加密算法 + 隐私计算 + 区块链',
+                    level: '进阶级'
+                });
+            }
+            
+            if (keywords.some(k => ['治理', '监管', '管控', '联合国'].includes(k))) {
+                insights.push('🏛️ 涉及治理监管框架');
+                productPaths.push({
+                    name: 'AI政策追踪助手',
+                    desc: '追踪全球AI政策法规，帮助企业合规',
+                    tools: '爬虫 + AI摘要 + 订阅推送',
+                    level: '入门级'
+                });
+            }
+            
+            if (insights.length === 0) {
+                insights.push('📜 合规治理相关');
+            }
+            
+            return { insights, productPaths };
+        }
+
+        function generateMentorInsights(keywords) {
+            const insights = [];
+            const productPaths = [];
+            
+            if (keywords.some(k => ['成长', '提升', '培养', '训练'].includes(k))) {
+                insights.push('📈 涉及个人成长路径');
+                productPaths.push({
+                    name: 'AI学习规划师',
+                    desc: '基于用户目标定制个性化学习路径',
+                    tools: 'LLM + 知识图谱 + 进度追踪',
+                    level: '入门级'
+                });
+            }
+            
+            if (keywords.some(k => ['学习', '知识', '教育', '课程'].includes(k))) {
+                insights.push('📚 涉及知识学习方法');
+                productPaths.push({
+                    name: '知识整理创作工具',
+                    desc: 'AI辅助将复杂知识整理成易懂内容',
+                    tools: 'AI摘要 + 笔记系统 + 内容创作',
+                    level: '入门级'
+                });
+            }
+            
+            if (keywords.some(k => ['普通人', '逆袭', '改变', '参与'].includes(k))) {
+                insights.push('🌱 涉及普通人赋能');
+                productPaths.push({
+                    name: '科技平权工具包',
+                    desc: '降低普通人接触高科技的门槛',
+                    tools: '低代码 + AI助手 + 教程',
+                    level: '入门级'
+                });
+            }
+            
+            if (keywords.some(k => ['行动', '规划', '实践', '贡献'].includes(k))) {
+                insights.push('🎯 涉及行动计划制定');
+                productPaths.push({
+                    name: '项目行动管理系统',
+                    desc: '帮助将想法转化为可执行项目',
+                    tools: '项目管理 + AI任务分解',
+                    level: '入门级'
+                });
+            }
+            
+            if (insights.length === 0) {
+                insights.push('💪 能力提升相关');
+            }
+            
+            return { insights, productPaths };
+        }
+
+        function animateProgress(agentId, callback) {
+            const progressBar = document.querySelector(`#${agentId} .progress-fill`);
+            const status = document.querySelector(`#${agentId} .agent-status`);
+            const card = document.getElementById(agentId);
+            
+            card.classList.add('active', 'working');
+            status.textContent = '分析中...';
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 25;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    card.classList.remove('working');
+                    card.classList.add('completed');
+                    callback();
+                }
+                progressBar.style.width = progress + '%';
+            }, 80);
+        }
+
+        function startDocumentAnalysis(level = '全部') {
+            if (!currentDocumentContent || currentDocumentContent.trim().length < 10) {
+                alert('请先导入文档后再进行分析！\n\n支持格式：.md, .docx, .pdf');
+                return;
+            }
+            
+            const submitBtn = document.querySelector(`.level-btn[data-level="${level}"]`) || document.querySelector('.level-btn.level-all');
+            const resultSection = document.getElementById('result-section');
+            
+            document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('selected'));
+            submitBtn.classList.add('selected');
+            
+            resultSection.classList.remove('visible');
+
+            document.querySelectorAll('.agent-card').forEach(card => {
+                card.classList.remove('active', 'working', 'completed');
+                card.querySelector('.progress-fill').style.width = '0%';
+                card.querySelector('.agent-status').textContent = '等待任务...';
+                card.querySelector('.agent-output').innerHTML = '';
+                card.querySelector('.agent-output').style.display = 'none';
+            });
+
+            const analysisResults = analyzeDocument(currentDocumentContent);
+
+            setTimeout(() => {
+                animateProgress('agent-science', () => {
+                    const output = document.getElementById('output-science');
+                    const data = analysisResults.science;
+                    const insightsList = data.insights?.insights || data.insights || [];
+                    const insights = Array.isArray(insightsList) ? insightsList.join('<br>') : insightsList;
+                    const filteredProducts = level === '全部' ? (data.productPaths || []) : (data.productPaths || []).filter(p => p.level === level);
+                    const product = filteredProducts[0];
+                    output.innerHTML = (insights || '') + (product ? `<br><br>💡 <strong>推荐：</strong>${product.name}` : '');
+                    document.querySelector('#agent-science .agent-status').textContent = '完成';
+                    
+                    setTimeout(() => {
+                        animateProgress('agent-health', () => {
+                            const output = document.getElementById('output-health');
+                            const data = analysisResults.health;
+                            const insightsList = data.insights?.insights || data.insights || [];
+                            const insights = Array.isArray(insightsList) ? insightsList.join('<br>') : insightsList;
+                            const filteredProducts = level === '全部' ? (data.productPaths || []) : (data.productPaths || []).filter(p => p.level === level);
+                            const product = filteredProducts[0];
+                            output.innerHTML = (insights || '') + (product ? `<br><br>💡 <strong>推荐：</strong>${product.name}` : '');
+                            document.querySelector('#agent-health .agent-status').textContent = '完成';
+                            
+                            setTimeout(() => {
+                                animateProgress('agent-security', () => {
+                                    const output = document.getElementById('output-security');
+                                    const data = analysisResults.security;
+                                    const insightsList = data.insights?.insights || data.insights || [];
+                                    const insights = Array.isArray(insightsList) ? insightsList.join('<br>') : insightsList;
+                                    const filteredProducts = level === '全部' ? (data.productPaths || []) : (data.productPaths || []).filter(p => p.level === level);
+                                    const product = filteredProducts[0];
+                                    output.innerHTML = (insights || '') + (product ? `<br><br>💡 <strong>推荐：</strong>${product.name}` : '');
+                                    document.querySelector('#agent-security .agent-status').textContent = '完成';
+                                    
+                                    setTimeout(() => {
+                                        animateProgress('agent-mentor', () => {
+                                            const output = document.getElementById('output-mentor');
+                                            const data = analysisResults.mentor;
+                                            const insightsList = data.insights?.insights || data.insights || [];
+                                            const insights = Array.isArray(insightsList) ? insightsList.join('<br>') : insightsList;
+                                            const filteredProducts = level === '全部' ? (data.productPaths || []) : (data.productPaths || []).filter(p => p.level === level);
+                                            const product = filteredProducts[0];
+                                            output.innerHTML = (insights || '') + (product ? `<br><br>💡 <strong>推荐：</strong>${product.name}` : '');
+                                            document.querySelector('#agent-mentor .agent-status').textContent = '完成';
+                                            
+                                            setTimeout(() => {
+                                                updateReportWithAnalysis(analysisResults, level);
+                                                resultSection.classList.add('visible');
+                                                document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('selected'));
+                                            }, 200);
+                                        });
+                                    }, 300);
+                                });
+                            }, 300);
+                        });
+                    }, 300);
+                });
+            }, 200);
+        }
+
+        function updateReportWithAnalysis(analysisResults, level = '全部') {
+            const resultSection = document.getElementById('result-section');
+            
+            const filterProducts = (products) => {
+                if (!products || !Array.isArray(products)) return [];
+                if (level === '全部') return products;
+                return products.filter(p => p.level === level);
+            };
+            
+            const getLevelColor = (lvl) => {
+                if (lvl === '入门级') return '#4caf50';
+                if (lvl === '中级') return '#ff9800';
+                return '#f44336';
+            };
+            
+            const getCycle = (lvl) => {
+                if (lvl === '入门级') return '1-2周';
+                if (lvl === '中级') return '1个月';
+                return '2-3个月';
+            };
+            
+            const generateProductCards = (data, icon) => {
+                const filtered = filterProducts(data.productPaths);
+                if (!filtered || filtered.length === 0) {
+                    return '<li style="opacity: 0.6; padding: 1rem;">暂无此难度的产品方向，可尝试其他级别</li>';
+                }
+                return filtered.map(path => `
+                    <li style="margin-bottom: 1rem; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid ${getLevelColor(path.level)};">
+                        <strong style="color: #00d4ff;">${icon} ${path.name}</strong>
+                        <div style="margin: 0.5rem 0; font-size: 0.9rem;">${path.desc}</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">
+                            🛠️ 工具栈：${path.tools}<br>
+                            📊 难度：<span style="color: ${getLevelColor(path.level)}; font-weight: bold;">${path.level}</span> | ⏱️ 周期：${getCycle(path.level)}
+                        </div>
+                    </li>
+                `).join('');
+            };
+
+            const allFilteredProducts = [
+                ...filterProducts(analysisResults.science.productPaths),
+                ...filterProducts(analysisResults.health.productPaths),
+                ...filterProducts(analysisResults.security.productPaths),
+                ...filterProducts(analysisResults.mentor.productPaths)
+            ];
+
+            const levelLabel = level === '全部' ? '全部级别' : level;
+            const levelColor = level === '入门级' ? '#4caf50' : level === '中级' ? '#ff9800' : level === '进阶级' ? '#9c27b0' : '#ff9800';
+
+            const getKeywordsDisplay = (keywords) => {
+                if (!keywords || !Array.isArray(keywords) || keywords.length === 0) return '通用';
+                return keywords.slice(0, 3).join('、');
+            };
+
+            const bookConnections = {
+                science: {
+                    book: '🚀 星萃联盟',
+                    desc: '书中提到的外星联盟组织，代表地球与星际文明的连接',
+                    products: ['太空数据可视化平台', '星际文明科普APP']
+                },
+                health: {
+                    book: '🧬 纳米芯片/营养液',
+                    desc: '地心人超前科技的代表，姬无烦亲身体验',
+                    products: ['基因科普知识库', 'AI健康监测助手']
+                },
+                security: {
+                    book: '🛡️ 传话人系统',
+                    desc: '地心人与地表人的安全通讯机制，万能量场保护',
+                    products: ['AI安全评估工具', '个人数据保险箱']
+                },
+                mentor: {
+                    book: '🧠 姬无烦的成长',
+                    desc: '从普通消防员到精神文明觉醒的蜕变之路',
+                    products: ['AI学习规划师', '知识整理创作工具']
+                }
+            };
+
+            resultSection.innerHTML = `
+                <h3 style="border-bottom: 2px solid ${levelColor}; padding-bottom: 0.5rem;">
+                    🚀 产品开发报告 - ${levelLabel}方案
+                </h3>
+                <p style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 1.5rem;">
+                    基于文档分析，为您匹配最适合的科技产品开发方向
+                </p>
+                <p style="font-size: 0.8rem; color: #ffd700; margin-bottom: 1.5rem; padding: 0.8rem; background: rgba(255,215,0,0.1); border-radius: 8px;">
+                    📚 核心信念：不是书给了我灵感，是我先有了方向，书给了我确认。
+                </p>
+                
+                <div class="report-card">
+                    <h4>👨‍🔬 科研助手 <span style="font-size: 0.8rem; opacity: 0.6;">（${getKeywordsDisplay(analysisResults.science?.keywords)}...）</span></h4>
+                    <p style="font-size: 0.8rem; color: #ffd700; margin: 0.5rem 0;">📖 《地心人的传话》：${bookConnections.science.book}</p>
+                    <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1rem;">${bookConnections.science.desc}</p>
+                    <ul style="font-size: 0.9rem;">
+                        ${generateProductCards(analysisResults.science || {}, '🚀')}
+                    </ul>
+                </div>
+                
+                <div class="report-card">
+                    <h4>🧬 生命科学家 <span style="font-size: 0.8rem; opacity: 0.6;">（${getKeywordsDisplay(analysisResults.health?.keywords)}...）</span></h4>
+                    <p style="font-size: 0.8rem; color: #ffd700; margin: 0.5rem 0;">📖 《地心人的传话》：${bookConnections.health.book}</p>
+                    <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1rem;">${bookConnections.health.desc}</p>
+                    <ul style="font-size: 0.9rem;">
+                        ${generateProductCards(analysisResults.health || {}, '🧬')}
+                    </ul>
+                </div>
+                
+                <div class="report-card">
+                    <h4>🛡️ 安全顾问 <span style="font-size: 0.8rem; opacity: 0.6;">（${getKeywordsDisplay(analysisResults.security?.keywords)}...）</span></h4>
+                    <p style="font-size: 0.8rem; color: #ffd700; margin: 0.5rem 0;">📖 《地心人的传话》：${bookConnections.security.book}</p>
+                    <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1rem;">${bookConnections.security.desc}</p>
+                    <ul style="font-size: 0.9rem;">
+                        ${generateProductCards(analysisResults.security || {}, '🛡️')}
+                    </ul>
+                </div>
+                
+                <div class="report-card">
+                    <h4>🧠 成长导师 <span style="font-size: 0.8rem; opacity: 0.6;">（${getKeywordsDisplay(analysisResults.mentor?.keywords)}...）</span></h4>
+                    <p style="font-size: 0.8rem; color: #ffd700; margin: 0.5rem 0;">📖 《地心人的传话》：${bookConnections.mentor.book}</p>
+                    <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1rem;">${bookConnections.mentor.desc}</p>
+                    <ul style="font-size: 0.9rem;">
+                        ${generateProductCards(analysisResults.mentor || {}, '🧠')}
+                    </ul>
+                </div>
+                
+                ${allFilteredProducts.length > 0 ? `
+                <div class="report-card" style="border-color: ${levelColor}; margin-top: 2rem; background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.1));">
+                    <h4 style="color: ${levelColor};">💡 推荐从这里开始</h4>
+                    <p style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 1rem;">按难度筛选后，最值得尝试的产品方向：</p>
+                    <ul style="font-size: 0.9rem;">
+                        ${allFilteredProducts.slice(0, 4).map((path, i) => `
+                            <li style="margin-bottom: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 4px solid ${levelColor};">
+                                <strong style="color: ${levelColor};">第${i + 1}步：${path.name}</strong>
+                                <div style="margin: 0.5rem 0;">${path.desc}</div>
+                                <div style="font-size: 0.8rem;">
+                                    🛠️ 技术栈：${path.tools}<br>
+                                    📊 难度：<span style="color: ${getLevelColor(path.level)};">${path.level}</span> | ⏱️ 周期：${getCycle(path.level)}
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        document.querySelectorAll('.level-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const level = btn.dataset.level;
+                startDocumentAnalysis(level);
+            });
+        });
+
+        const mockResponses = {
+            science: `根据当前航天技术发展，普通人参与太空探索的主要路径包括：
+
+1. **关注商业航天发展**：SpaceX、蓝色起源等公司正在降低太空旅行门槛
+2. **学习相关知识**：天文学、航空航天工程、AI在航天中的应用
+3. **参与公民科学项目**：如SETI@home分布式计算项目
+4. **关注政策动态**：各国太空政策的开放程度正在提升`,
+            
+            health: `长寿科技领域的最新进展为普通人带来诸多机遇：
+
+1. **细胞再生技术**：干细胞研究和基因编辑技术正在突破衰老限制
+2. **纳米医疗**：纳米机器人可精准靶向治疗，提升健康水平
+3. **AI辅助医疗**：人工智能加速药物研发，实现个性化健康管理
+4. **脑机接口**：连接大脑与机器，拓展人类认知边界`,
+            
+            security: `在参与前沿科技活动时，请注意以下安全事项：
+
+1. **数据隐私**：谨慎提供个人信息，了解数据使用条款
+2. **AI伦理**：关注AI决策的透明度和可解释性
+3. **风险评估**：任何新技术都存在不确定性，保持理性判断
+4. **合规性**：遵守相关法律法规和平台规则`,
+            
+            mentor: `为普通人设计的未来科技学习路径：
+
+**第一阶段（基础认知）**
+- 订阅前沿科技科普媒体，建立知识框架
+- 学习基础科学知识，培养科学思维
+
+**第二阶段（技能培养）**
+- 掌握编程基础，了解数据分析和AI工具
+- 参与开源项目，积累实践经验
+
+**第三阶段（深度参与）**
+- 加入相关社群，连接志同道合者
+- 寻找实习或志愿者机会，深入感兴趣的领域`
+        };
+
+        document.getElementById('submit-btn').addEventListener('click', function() {
+            const question = document.getElementById('question-input').value || '作为普通人，如何参与未来科技发展？';
+            const submitBtn = this;
+            const resultSection = document.getElementById('result-section');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '协作中...';
+            resultSection.classList.remove('visible');
+
+            document.querySelectorAll('.agent-card').forEach(card => {
+                card.classList.remove('active', 'working', 'completed');
+                card.querySelector('.progress-fill').style.width = '0%';
+                card.querySelector('.agent-status').textContent = '等待任务...';
+                card.querySelector('.agent-output').innerHTML = '';
+                card.querySelector('.agent-output').style.display = 'none';
+            });
+
+            setTimeout(() => {
+                animateProgress('agent-science', () => {
+                    document.getElementById('output-science').innerHTML = mockResponses.science.replace(/\n/g, '<br>');
+                    document.querySelector('#agent-science .agent-status').textContent = '完成';
+                    
+                    setTimeout(() => {
+                        animateProgress('agent-health', () => {
+                            document.getElementById('output-health').innerHTML = mockResponses.health.replace(/\n/g, '<br>');
+                            document.querySelector('#agent-health .agent-status').textContent = '完成';
+                            
+                            setTimeout(() => {
+                                animateProgress('agent-security', () => {
+                                    document.getElementById('output-security').innerHTML = mockResponses.security.replace(/\n/g, '<br>');
+                                    document.querySelector('#agent-security .agent-status').textContent = '完成';
+                                    
+                                    setTimeout(() => {
+                                        animateProgress('agent-mentor', () => {
+                                            document.getElementById('output-mentor').innerHTML = mockResponses.mockResponses.mentor.replace(/\n/g, '<br>');
+                                            document.querySelector('#agent-mentor .agent-status').textContent = '完成';
+                                            
+                                            setTimeout(() => {
+                                                resultSection.classList.add('visible');
+                                                submitBtn.disabled = false;
+                                                submitBtn.textContent = '🚀 启动分身协作';
+                                            }, 500);
+                                        });
+                                    }, 800);
+                                });
+                            }, 800);
+                        });
+                    }, 800);
+                });
+            }, 500);
+        });
+
+        createStars();
+    </script>
+</body>
+</html>
