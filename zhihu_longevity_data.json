@@ -1,0 +1,79 @@
+{
+  "category": "长寿科技",
+  "source": "知乎",
+  "items": [
+    {
+      "title": "首个"逆转细胞衰老"人体试验获批,长寿科技迎来关键验证节点",
+      "summary": "哈佛David Sinclair的表观遗传重编程技术ER-100获FDA批准进入人体试验，采用OSK基因疗法，通过多西环素控制基因开关",
+      "companies": ["Life Biosciences", "Sinclair Lab"],
+      "investors": ["贝索斯", "Altos Labs"],
+      "key_tech": ["表观遗传", "重编程", "OSK", "AAV", "多西环素"],
+      "url": "https://zhuanlan.zhihu.com/p/2002758022011840115"
+    },
+    {
+      "title": "长寿科技出海!瑞健未来Rlab亮相迪拜世界健康博览会",
+      "summary": "中国长寿科技企业携高压氧舱、冷冻舱等设备出海迪拜，从声、光、电、热、水、磁、氧七大维度布局",
+      "companies": ["瑞健未来Rlab"],
+      "key_tech": ["高压氧舱", "冷冻舱", "高低氧设备"],
+      "url": "https://m.sohu.com/a/985937856_121284943"
+    },
+    {
+      "title": "长寿科技的底层解剖:当富人开始"重装系统"",
+      "summary": "分析长寿科技资本布局，探讨技术公平性问题，提出普通人应对策略",
+      "key_insight": "资本涌入、长寿科技可能成为富人专属",
+      "companies": ["Life Biosciences", "Altos Labs", "Retro Biosciences", "NewLimit"],
+      "investors": ["贝索斯", "奥特曼", "Brian Armstrong"],
+      "key_points": [
+        "ER-100只是局部测试，目标是全身细胞重编程",
+        "去掉c-Myc致癌基因，只留OSK，配有物理开关",
+        "财富的最终固定物将从货币变成时间",
+        "普通人要提前了解，抢占上桌筹码"
+      ]
+    },
+    {
+      "title": "2026国际功能医学创新大会暨长寿科技创新大会",
+      "summary": "成都、上海、深圳、杭州、北京五城巡展，聚焦细胞再生、抗衰老医学、基因编辑等前沿技术",
+      "key_tech": ["细胞再生", "外泌体", "抗衰老", "基因编辑", "AI健康"],
+      "url": "https://zhuanlan.zhihu.com/p/1979838640550080695"
+    },
+    {
+      "title": "中国长寿科技引全球关注 - 时光派/Timecure",
+      "summary": "美国驻上海总领事馆考察国内首个长寿科技平台，涵盖高压氧舱、冷冻疗法、脑机接口等设备",
+      "companies": ["时光派", "Timecure"],
+      "key_tech": ["高压氧舱", "冷冻舱", "光疗", "脑机接口", "高低氧"],
+      "url": "https://www.bjnews.com.cn/detail/1765331479129017"
+    }
+  ],
+  "key_companies": {
+    "Life Biosciences": {
+      "founder": "David Sinclair",
+      "breakthrough": "ER-100获FDA批准",
+      "tech": "OSK表观遗传重编程"
+    },
+    "Altos Labs": {
+      "funding": "30亿美元",
+      "investor": "贝索斯",
+      "focus": "细胞重编程"
+    },
+    "Retro Biosciences": {
+      "investor": "奥特曼",
+      "funding": "寻求10亿美元融资，估值50亿"
+    },
+    "NewLimit": {
+      "founders": "Brian Armstrong",
+      "funding": "1.3亿美元B轮"
+    }
+  },
+  "key_technologies": {
+    "表观遗传重编程": "通过OSK基因恢复细胞年轻状态",
+    "高压氧舱": "1.9ATA压力，碳纤维材质",
+    "脑机接口": "临港实验室突破",
+    "Neuro-IVUS": "脑血管介入超声诊断"
+  },
+  "timeline": {
+    "2026_02": "迪拜世界健康博览会",
+    "2026_03": "成都功能医学大会",
+    "2026_04": "上海功能医学大会",
+    "2026_07": "深圳功能医学大会"
+  }
+}
