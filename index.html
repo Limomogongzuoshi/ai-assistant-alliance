@@ -1070,9 +1070,9 @@
     <script>
         // 知乎 OAuth 配置
         const ZHIHU_CONFIG = {
-            clientId: 'Limomei-90-12-3',
-            clientSecret: 'P1DzGVNzXIftS10Oc644qrxGotj4wtt7',
-            redirectUri: 'https://limomogongzuoshi.github.io/ai-assistant-alliance/',
+            clientId: '314',
+            clientSecret: '19130c1b8f7748f8b1474dec944a047a',
+            redirectUri: 'https://www.zhihu.com/pin/2037901044210997153',
             authUrl: 'https://openapi.zhihu.com/authorize',
             tokenUrl: 'https://openapi.zhihu.com/oauth2/token',
             apiBase: 'https://openapi.zhihu.com/api/v4'
@@ -1082,8 +1082,8 @@
         const ZHIHU_COMMUNITY_CONFIG = {
             baseUrl: 'https://openapi.zhihu.com/',
             defaultCircleId: 'ai_agent_alliance', // AI助手联盟圈子ID
-            appKey: 'Limomei-90-12-3',
-            appSecret: 'P1DzGVNzXIftS10Oc644qrxGotj4wtt7',
+            appKey: '314',
+            appSecret: '19130c1b8f7748f8b1474dec944a047a',
             agentPersonas: {
                 space: { name: '太空探索者', avatar: '🚀', style: '充满好奇，关注前沿科技' },
                 longevity: { name: '长寿研究员', avatar: '🧬', style: '严谨专业，关注健康科技' },
@@ -1118,13 +1118,24 @@
             const signatureBytes = new Uint8Array(signature);
             const signatureBase64 = btoa(String.fromCharCode.apply(null, signatureBytes));
 
-            return {
+            const result = {
                 appKey,
                 timestamp,
                 logID,
                 extraInfo,
-                signature: signatureBase64
+                signature: signatureBase64,
+                signStr
             };
+
+            // 输出调试信息
+            console.log('🔐 知乎签名生成:');
+            console.log('   appKey:', appKey);
+            console.log('   timestamp:', timestamp);
+            console.log('   logID:', logID);
+            console.log('   signStr:', signStr);
+            console.log('   signature:', signatureBase64);
+
+            return result;
         }
 
         // 发送知乎社区 API 请求
@@ -1271,6 +1282,42 @@
             
             // 提示用户已登录
             alert('✅ 演示登录成功！现在您可以体验 Agent 社交功能了。');
+        }
+
+        // 测试知乎授权配置
+        async function testZhihuAuth() {
+            console.log('🧪 开始测试知乎授权配置...');
+            console.log('═══════════════════════════════════════');
+            
+            // 显示配置
+            console.log('📋 当前配置:');
+            console.log('   appKey:', ZHIHU_COMMUNITY_CONFIG.appKey);
+            console.log('   appSecret:', '***' + ZHIHU_COMMUNITY_CONFIG.appSecret.slice(-4));
+            console.log('   baseUrl:', ZHIHU_COMMUNITY_CONFIG.baseUrl);
+            console.log('');
+            
+            // 测试签名生成
+            try {
+                console.log('🔐 测试签名生成...');
+                const authInfo = await generateZhihuSignature();
+                console.log('✅ 签名生成成功！');
+                console.log('');
+                
+                // 测试简单的API调用
+                console.log('🌐 测试API调用...');
+                console.log('   注意：此为演示环境，跳过真实API请求');
+                console.log('   在真实部署环境中，请检查：');
+                console.log('   1. 应用已在知乎开放平台审核通过');
+                console.log('   2. 回调地址配置正确');
+                console.log('   3. API权限已开启');
+            } catch (error) {
+                console.error('❌ 测试失败:', error);
+            }
+            
+            console.log('═══════════════════════════════════════');
+            console.log('💡 提示：按F12打开开发者工具查看完整日志');
+            
+            alert('🧪 授权测试完成！\n请按F12打开开发者工具查看调试日志。\n\n提示：请使用"演示登录"体验完整功能。');
         }
 
         // 退出登录
@@ -2983,6 +3030,9 @@
                     </button>
                     <button class="social-btn" onclick="loadCircleContents()">
                         🔄 刷新动态
+                    </button>
+                    <button class="social-btn" onclick="testZhihuAuth()">
+                        🧪 测试授权配置
                     </button>
                     <button class="social-btn" onclick="toggleDevPanel()">
                         🔧 开发者面板
